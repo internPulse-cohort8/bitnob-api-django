@@ -62,27 +62,12 @@ Populate your .env file with the necessary variables. Here's a sample. Replace p
 
 Example:
 ```
-# Django Settings
-DJANGO_SECRET_KEY=your_development_secret_key_here_for_local_dev
-DJANGO_DEBUG=True
-
-# Database Settings (SQLite for local development is usually fine)
-# For production, you'd use PostgreSQL or similar, configured via environment variables.
-# DB_ENGINE=django.db.backends.sqlite3
-# DB_NAME=db.sqlite3
-
-# Example for PostgreSQL (uncomment and configure if needed for local Postgres)
-DB_ENGINE=django.db.backends.postgresql
-DB_NAME=your_local_db_name
-DB_USER=your_local_db_user
-DB_PASSWORD=your_local_db_password
-DB_HOST=localhost
-DB_PORT=5432
-
-# Bitnob API Credentials (Use sandbox keys for development!)
-BITNOB_API_KEY=sk-test-your_bitnob_api_key
-BITNOB_BASE_URL=https://api.bitnob.com/v1/sandbox 
+SECRET_KEY='actual-django-secret-key'
+BITNOB_API_KEY='our_bitnob_api_key'
+DEBUG=TRUE
+BITNOB_BASE_URL=https://sandboxapi.bitnob.co/api/v1/
 ```
+**Feel free to use the `.env.example` file provided, but ensure to change name to `.env`**
 
 - **Run Migrations:**
 Apply any database migrations to set up your local database.
@@ -289,3 +274,5 @@ Be proactive in reviewing teammates' PRs.
 Communicate any challenges or roadblocks early.
 
 Let's build the best feature together!
+
+N.B: This wasn't edited to the best of abilites, and should be improved. It was just to get the team started.
