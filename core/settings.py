@@ -10,16 +10,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
+BITNOB_API_KEY = config('BITNOB_API_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = True
+# DEBUG = 'True'
 
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = []
 
 BITNOB_API_KEY = config("BITNOB_API_KEY")
-BITNOB_BASE_URL = config("BITNOB_BASE_URL", default="https://sandboxapi.bitnob.co/api/v1/")
+BITNOB_BASE_URL = config("BITNOB_BASE_URL", default="https://sandboxapi.bitnob.co/api/v1")
 
 
 
@@ -125,3 +126,5 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+

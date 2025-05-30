@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.http import JsonResponse
 from django.contrib.auth import get_user_model
 
 from rest_framework.views import APIView
@@ -6,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-from .services import create_virtual_card, fund_virtual_card, get_card_transactions
+from .services import create_virtual_card, fund_virtual_card, get_card_transactions, list_cards
 from .models import VirtualCard
 
 User = get_user_model()
@@ -157,3 +158,18 @@ class GetCardTransactionsView(APIView):
                 {"detail": f"An unexpected error occurred: {e}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+            
+class ListCardsView(APIView):
+    def get(self, request):
+        try:
+            page = request.GET.get("page", 1)
+            cards = list_cards(page=page)
+            return JsonResponse(cards, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+
+
+
+
+

@@ -44,3 +44,13 @@ def get_card_transactions(bitnob_card_id, page=1):
     }
     response = requests.get(url, params=params, headers=headers)
     return response.json()
+
+def list_cards(page=1):        #the list_cards function receives an HttpRequest object "request" as its first argument and it contains information about the incoming HTTP request. It assigns the endpoint for the Bitnob API that is used to list virtual cards
+    url = f"{BITNOB_BASE_URL}/virtualcards/cards"
+    params = {
+        "page": page,
+    }                            
+    response = requests.get(url, params=params, headers=headers)           #This is where the actual HTTP GET request is made
+    return response.json()
+    
+    
