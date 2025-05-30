@@ -1,28 +1,175 @@
-import requests #HTTP library for Python, used for making web requests (like GET, POST, etc.) to external APIs or websites.
-from decouple import config
 from django.conf import settings
-from rest_framework.decorators import api_view
+from django.http import JsonResponse
+from django.contrib.auth import get_user_model
+
+from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-@api_view(['GET'])              #Decorators are a way to modify or enhance functions. It tells that this list_cards view should only respond to HTTP GET requests. no POST, DELETE.
-def list_cards(request):        #the list_cards function receives an HttpRequest object "request" as its first argument and it contains information about the incoming HTTP request. It assigns the endpoint for the Bitnob API that is used to list virtual cards
-    url = "https://sandboxapi.bitnob.co/api/v1/virtualcards/cards"
-    api_key = settings.BITNOB_API_KEY
-    headers = {                                             
-        "Authorization": f"Bearer {api_key}",     #The Bitnob uses this to verify that your application is authorized to make the request
+from .services import create_virtual_card, fund_virtual_card, get_card_transactions, list_cards
+from .models import VirtualCard
 
-        "Accept": "application/json"        #this line tells the Bitnob API that your application prefers to recieve the response in JSON format.
-    }                                       
-    response = requests.get(url, headers=headers)           #This is where the actual HTTP GET request is made
+User = get_user_model()
 
-    if response.status_code == 200:             #If the request was successful (status code 200)
-        return Response(response.json(), status=status.HTTP_200_OK)
-    else:
-        return Response({
-            "status": "error",
-            "message": "Failed to fetch cards",
-            "details": response.json()
-        }, status=response.status_code)
+def get_mock_user():
+    """Used as auth is not yet wired up, only in DEBUG mode"""
+    user, _ = User.objects.get_or_create(
+        email="testuser@example.com",
+        defaults={"first_name": "Test", "last_name": "User", "username": "testuser"}
+    )
+    return user
+
+
+class CreateVirtualCardView(APIView):
+    # Enforce auth only when DEBUG is False (i.e., in production)
+    if not settings.DEBUG:
+        permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = request.data
+
+        # Get or mock user
+        user = request.user
+        if user.is_anonymous and settings.DEBUG:
+            user = get_mock_user()
+
+        customer_email = user.email
+        first_name = user.first_name or "John"
+        last_name = user.last_name or "Doe"
+
+        card_brand = data.get("cardBrand", "visa")
+        card_type = data.get("cardType", "virtual")
+        amount = data.get("amount")
+
+        if not amount:
+            return Response(
+                {"detail": "Amount is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        result = create_virtual_card(
+            customer_email, first_name, last_name,
+            card_brand, card_type, amount
+        )
+
+        if result.get("status"):
+            card_data = result.get("data", {})
+
+            card = VirtualCard.objects.create(
+                user=user,
+                bitnob_card_id=card_data.get("id"),
+                card_brand=card_data.get("cardBrand", ""),
+                card_type=card_data.get("cardType", ""),
+                status=card_data.get("createdStatus", "pending"),
+                reference=card_data.get("reference", ""),
+            )
+
+            return Response({
+                "detail": "Card creation in progress",
+                "card": {
+                    "id": card.bitnob_card_id,
+                    "status": card.status,
+                    "reference": card.reference,
+                }
+            }, status=status.HTTP_201_CREATED)
+
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+
+class FundVirtualCardView(APIView):
+    if not settings.DEBUG:
+        permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = request.data
+
+        # Get or mock user
+        user = request.user
+        if user.is_anonymous and settings.DEBUG:
+            user = get_mock_user()
+
+        card_id = data.get("cardId")
+        amount = data.get("amount")
+        reference = data.get("reference")
+
+        if not all([card_id, amount, reference]):
+            return Response(
+                {"detail": "cardId, amount, and reference are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        status_code, result = fund_virtual_card(card_id, amount, reference)
+        return Response(result, status=status_code)
+
+    
+class GetCardTransactionsView(APIView):
+    """
+    API endpoint to retrieve transactions for a specific virtual card.
+    """
+    def get(self, request, bitnob_card_id, *args, **kwargs):
+        try:
+            virtual_card_record = VirtualCard.objects.get(bitnob_card_id=bitnob_card_id)
+        except VirtualCard.DoesNotExist:
+            return Response(
+                {"detail": "Virtual card not found in your system."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Error checking internal card record: {e}")
+            return Response(
+                {"detail": "An internal error occurred while verifying card internally."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+
+        try:
+             bitnob_transactions_data = get_card_transactions(
+                bitnob_card_id=bitnob_card_id
+             )
+             
+             transactions_list = bitnob_transactions_data.get('data', [])
+             
+             return Response(transactions_list, status=status.HTTP_200_OK)
+
+        except requests.exceptions.HTTPError as e:
+            error_message = f"Bitnob API error: {e}"
+            if e.response is not None:
+                try:
+                    error_json = e.response.json()
+                    error_message = error_json.get('message', error_message)
+                    print(f"Bitnob error details: {error_json}")
+                except Exception:
+                    pass # Couldn't parse error JSON
+            print(f"Error fetching card transactions from Bitnob: {e}")
+            return Response(
+                {"detail": f"Failed to retrieve transactions: {error_message}"},
+                status=e.response.status_code if e.response else status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except requests.exceptions.RequestException as e:
+            print(f"Network error contacting Bitnob API: {e}")
+            return Response(
+                {"detail": f"Network error contacting payment provider: {e}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return Response(
+                {"detail": f"An unexpected error occurred: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+class ListCardsView(APIView):
+    def get(self, request):
+        try:
+            page = request.GET.get("page", 1)
+            cards = list_cards(page=page)
+            return JsonResponse(cards, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+
+
+
 
 

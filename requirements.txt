@@ -9,3 +9,6 @@ requests==2.32.3
 sqlparse==0.5.3
 typing_extensions==4.13.2
 urllib3==2.4.0
+psycopg2-binary==2.9.10
+pytest==8.3.5
+pytest-django==4.11.1
