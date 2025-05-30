@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-from .services import create_virtual_card, fund_virtual_card
+from .services import create_virtual_card, fund_virtual_card, get_card_transactions
 from .models import VirtualCard
 
 User = get_user_model()
@@ -100,3 +100,60 @@ class FundVirtualCardView(APIView):
 
         status_code, result = fund_virtual_card(card_id, amount, reference)
         return Response(result, status=status_code)
+
+    
+class GetCardTransactionsView(APIView):
+    """
+    API endpoint to retrieve transactions for a specific virtual card.
+    """
+    def get(self, request, bitnob_card_id, *args, **kwargs):
+        try:
+            virtual_card_record = VirtualCard.objects.get(bitnob_card_id=bitnob_card_id)
+        except VirtualCard.DoesNotExist:
+            return Response(
+                {"detail": "Virtual card not found in your system."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Error checking internal card record: {e}")
+            return Response(
+                {"detail": "An internal error occurred while verifying card internally."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+
+        try:
+             bitnob_transactions_data = get_card_transactions(
+                bitnob_card_id=bitnob_card_id
+             )
+             
+             transactions_list = bitnob_transactions_data.get('data', [])
+             
+             return Response(transactions_list, status=status.HTTP_200_OK)
+
+        except requests.exceptions.HTTPError as e:
+            error_message = f"Bitnob API error: {e}"
+            if e.response is not None:
+                try:
+                    error_json = e.response.json()
+                    error_message = error_json.get('message', error_message)
+                    print(f"Bitnob error details: {error_json}")
+                except Exception:
+                    pass # Couldn't parse error JSON
+            print(f"Error fetching card transactions from Bitnob: {e}")
+            return Response(
+                {"detail": f"Failed to retrieve transactions: {error_message}"},
+                status=e.response.status_code if e.response else status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except requests.exceptions.RequestException as e:
+            print(f"Network error contacting Bitnob API: {e}")
+            return Response(
+                {"detail": f"Network error contacting payment provider: {e}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return Response(
+                {"detail": f"An unexpected error occurred: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
