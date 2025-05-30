@@ -35,3 +35,12 @@ def fund_virtual_card(card_id, amount, reference):
     }
     response = requests.post(url, json=data, headers=headers)
     return response.status_code, response.json()
+
+
+def get_card_transactions(bitnob_card_id, page=1):
+    url = f"{BITNOB_BASE_URL}/virtualcards/cards/{bitnob_card_id}/transactions"
+    params = {
+        "page": page,
+    }
+    response = requests.get(url, params=params, headers=headers)
+    return response.json()

@@ -3,7 +3,7 @@ from django.conf import settings
 
 class VirtualCard(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    bitnob_card_id = models.CharField(max_length=100, unique=True)
+    bitnob_card_id = models.CharField(max_length=100, unique=True, db_index=True)
     card_brand = models.CharField(max_length=50, blank=True)
     card_type = models.CharField(max_length=50, blank=True)
     amount = models.DecimalField(max_digits=18, decimal_places=2, default=0.00)
