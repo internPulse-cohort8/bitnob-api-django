@@ -1,14 +1,17 @@
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import get_user_model
+import requests
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 
 from .services import create_virtual_card, fund_virtual_card, get_card_transactions, list_cards
 from .models import VirtualCard
+
+from django.urls import reverse
 
 User = get_user_model()
 
@@ -24,7 +27,7 @@ def get_mock_user():
 class CreateVirtualCardView(APIView):
     # Enforce auth only when DEBUG is False (i.e., in production)
     if not settings.DEBUG:
-        permission_classes = [IsAuthenticated]
+        permission_classes = [AllowAny]
 
     def post(self, request):
         data = request.data
@@ -79,7 +82,7 @@ class CreateVirtualCardView(APIView):
 
 class FundVirtualCardView(APIView):
     if not settings.DEBUG:
-        permission_classes = [IsAuthenticated]
+        permission_classes = [AllowAny]
 
     def post(self, request):
         data = request.data
@@ -160,15 +163,31 @@ class GetCardTransactionsView(APIView):
             )
             
 class ListCardsView(APIView):
-    def get(self, request):
+    def get(self, request, *args, **kwargs):
         try:
             page = request.GET.get("page", 1)
             cards = list_cards(page=page)
-            return JsonResponse(cards, safe=False)
+            return Response(cards)
         except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+            return Response({"error": str(e)}, status=500)
 
 
+def home(request):
+    html = f"""
+    <html>
+        <head><title>Payment Gateway API</title></head>
+        <body>
+            <h1>Welcome to the Payment Gateway API</h1>
+            <ul>
+                <li><a href="{reverse('create-card')}">Create Card</a></li>
+                <li><a href="{reverse('topup-virtual-card')}">Top Up</a></li>
+                <li><a href="{reverse('list_cards')}">List Cards</a></li>
+                <li> To use get-card-transactions, use virtualcards/bitnob_card_id/transactions/ Remember to replace bitnob_card_id with your card ID generated at the create-card endpoint </li?
+            </ul>
+        </body>
+    </html>
+    """
+    return HttpResponse(html)
 
 
 
