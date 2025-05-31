@@ -82,7 +82,7 @@ class CreateVirtualCardView(APIView):
 
 class FundVirtualCardView(APIView):
     if not settings.DEBUG:
-        permission_classes = [IsAuthenticated]
+        permission_classes = [AllowAny]
 
     def post(self, request):
         data = request.data
@@ -167,9 +167,9 @@ class ListCardsView(APIView):
         try:
             page = request.GET.get("page", 1)
             cards = list_cards(page=page)
-            return JsonResponse(cards, safe=False)
+            return Response(cards)
         except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+            return Response({"error": str(e)}, status=500)
 
 
 def home(request):
