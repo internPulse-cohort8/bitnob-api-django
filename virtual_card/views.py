@@ -1,6 +1,7 @@
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import get_user_model
+import requests
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -9,6 +10,8 @@ from rest_framework import status
 
 from .services import create_virtual_card, fund_virtual_card, get_card_transactions, list_cards
 from .models import VirtualCard
+
+from django.urls import reverse
 
 User = get_user_model()
 
@@ -169,6 +172,22 @@ class ListCardsView(APIView):
             return JsonResponse({"error": str(e)}, status=500)
 
 
+def home(request):
+    html = f"""
+    <html>
+        <head><title>Payment Gateway API</title></head>
+        <body>
+            <h1>Welcome to the Payment Gateway API</h1>
+            <ul>
+                <li><a href="{reverse('create-card')}">Create Card</a></li>
+                <li><a href="{reverse('topup-virtual-card')}">Top Up</a></li>
+                <li><a href="{reverse('list_cards')}">List Cards</a></li>
+                <li> To use get-card-transactions, use virtualcards/bitnob_card_id/transactions/ Remember to replace bitnob_card_id with your card ID generated at the create-card endpoint </li?
+            </ul>
+        </body>
+    </html>
+    """
+    return HttpResponse(html)
 
 
 
