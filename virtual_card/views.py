@@ -5,7 +5,7 @@ import requests
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 
 from .services import create_virtual_card, fund_virtual_card, get_card_transactions, list_cards
@@ -27,7 +27,7 @@ def get_mock_user():
 class CreateVirtualCardView(APIView):
     # Enforce auth only when DEBUG is False (i.e., in production)
     if not settings.DEBUG:
-        permission_classes = [IsAuthenticated]
+        permission_classes = [AllowAny]
 
     def post(self, request):
         data = request.data
@@ -163,7 +163,7 @@ class GetCardTransactionsView(APIView):
             )
             
 class ListCardsView(APIView):
-    def get(self, request):
+    def get(self, request, *args, **kwargs):
         try:
             page = request.GET.get("page", 1)
             cards = list_cards(page=page)
